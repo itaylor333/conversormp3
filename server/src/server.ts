@@ -1,8 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import { exec } from 'child_process';
-import { createReadStream, unlink } from 'fs';
-import { join } from 'path';
+import { createReadStream, statSync, unlink } from 'fs';
+import { resolve } from 'path';
 import ytdl from 'youtube-dl-exec';
 
 const app = express();
@@ -12,36 +11,59 @@ app.use(cors());
 
 app.get('/download', async (req, res) => {
   const videoUrl = req.query.url as string;
+  const format = req.query.format as 'mp3' | 'mp4';
 
-  if (!videoUrl) {
-    return res.status(400).send('URL is required');
+  if (!videoUrl || !format) {
+    return res.status(400).send('URL e formato são obrigatórios');
   }
 
   try {
-    const output = `audio-${Date.now()}.mp3`;
-
-    await ytdl(videoUrl, {
-      output,
-      extractAudio: true,
-      audioFormat: 'mp3',
-      audioQuality: 0,
+    const info: any = await ytdl(videoUrl, {
+      dumpSingleJson: true,
+      noWarnings: true,
+      preferFreeFormats: true,
+      youtubeSkipDashManifest: true,
     });
 
-    const filePath = join(__dirname, '..', output);
-    res.setHeader('Content-Disposition', `attachment; filename="audio.mp3"`);
+    const rawTitle = info.title || 'video';
+    const safeTitle = rawTitle.replace(/[\/\\?%*:|"<>]/g, '-');
+    const fileExt = format === 'mp3' ? 'mp3' : 'mp4';
+    const filename = `${safeTitle}.${fileExt}`;
+    const outputPath = resolve(__dirname, '..', filename);
 
-    const stream = createReadStream(filePath);
+    if (format === 'mp3') {
+      await ytdl(videoUrl, {
+        output: outputPath,
+        extractAudio: true,
+        audioFormat: 'mp3',
+        noCheckCertificates: true,
+      });
+    } else {
+      await ytdl(videoUrl, {
+        output: outputPath,
+        format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
+        mergeOutputFormat: 'mp4',
+      });
+    }
+
+    const fileSize = statSync(outputPath).size;
+
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Type', format === 'mp3' ? 'audio/mpeg' : 'video/mp4');
+    res.setHeader('Content-Length', fileSize);
+
+    const stream = createReadStream(outputPath);
     stream.pipe(res);
 
     stream.on('close', () => {
-      unlink(filePath, () => {});
+      unlink(outputPath, () => {});
     });
   } catch (error) {
     console.error('Erro na conversão:', error);
-    res.status(500).send('Failed to convert video');
+    res.status(500).send('Falha ao baixar o video.');
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
