@@ -8,7 +8,7 @@ function App() {
   const handleDownload = async () => {
     try {
       const res = await fetch(
-        `http://localhost:4000/download?url=${encodeURIComponent(url)}&format=${format}`
+        `https://backendcmp3.onrender.com/download?url=${encodeURIComponent(url)}&format=${format}`
       );
 
       if (!res.ok) {
