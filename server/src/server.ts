@@ -5,7 +5,7 @@ import { resolve } from 'path';
 import ytdl from 'youtube-dl-exec';
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 

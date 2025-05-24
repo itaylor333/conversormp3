@@ -2,6 +2,9 @@
   "name": "youtube-mp3-server",
   "version": "1.0.0",
   "main": "dist/server.js",
+  "engine":{
+    "node":"14.x"
+  },
   "scripts": {
     "start": "tsc && node dist/server.js",
     "dev": "ts-node-dev src/server.ts"
